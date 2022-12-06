@@ -25,13 +25,14 @@ function parseNodeContent(rdr: Reader, end: RegExp, out: HtmlNode) {
 		let attr: RegExpExecArray;
 		const attributeMap: Record<string, string> = {};
 		out.text += consume(rdr, open);
-		while(attr = /^(\w[^>=\s]*)(:?\s*=\s*"(.*?)")?/g.exec(rdr.source)) {
+		while(attr = /^(\w[^\/>=\s]*)(:?\s*=\s*"(.*?)")?/g.exec(rdr.source)) {
 			consume(rdr, attr);
 			attributeMap[attr[1]] = attr[3] === undefined ? null : attr[3];
 		}
-		if(!rdr.source.startsWith('>'))
-			throw new ParseError(`Tag "${open[1]}" at ${open.index} finishes opening with a '>'`);
-		rdr.source = rdr.source.substring(1);
+		let tagEnd = /\/?>/.exec(rdr.source)
+		if(!tagEnd)
+			throw new ParseError(`Tag "${open[1]}" at ${open.index} finishes opening with a '>' or '/>`);
+		consume(rdr, tagEnd);
 		const newNode: HtmlNode = {
 			tagName: open[1],
 			attributeMap,
@@ -39,7 +40,8 @@ function parseNodeContent(rdr: Reader, end: RegExp, out: HtmlNode) {
 			children: []
 		};
 		out.children.push(newNode);
-		parseNodeContent(rdr, new RegExp(`<\/${open[1]}>`), newNode);
+		if(tagEnd[0] == '>')
+			parseNodeContent(rdr, new RegExp(`<\/${open[1]}>`), newNode);
 		open = /<(\w+)/g.exec(rdr.source);
 		close = end.exec(rdr.source);
 	}
